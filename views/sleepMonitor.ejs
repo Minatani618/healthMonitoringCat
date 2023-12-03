@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>睡眠監視にゃんこ</title>
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <p>君が早く寝ないとこのにゃんこはどんどん弱っていくぞ！</p>
+    <img
+      src="/images/sleepMonitor/<%= neko + '_' + sleepStatus + '.png' %>"
+      alt=""
+    />
+    <form action="/sleepMonitor" method="post">
+      <input type="hidden" name="sleepStart" value="fall asleep" id="" />
+      <input type="submit" value="ねむる..." />
+    </form>
+  </body>
+</html>
