@@ -6,11 +6,17 @@
   </head>
   <body>
     <h1><%= title %></h1>
-    <p>君が早く寝ないとこのにゃんこはどんどん弱っていくぞ！</p>
+    <p>君が早く寝ないと、このにゃんこはどんどん弱っていくぞ！</p>
     <img
       src="/images/sleepMonitor/<%= neko + '_' + sleepStatus + '.png' %>"
       alt=""
     />
+    <div id="resultContainer">
+      <p>現在の睡眠状態</p>
+      <p>睡眠ランク: <%= sleepStatus %>, <%= sleepStatusStr %></p>
+      <p>前回の睡眠開始時間</p>
+      <p id="latestSleepTime"><%= latestSleepTime %></p>
+    </div>
     <form action="/sleepMonitor" method="post">
       <input type="hidden" name="sleepStart" value="fall asleep" id="" />
       <input type="submit" value="ねむる..." />
