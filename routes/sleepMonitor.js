@@ -15,7 +15,7 @@ router.get("/", function (req, res, next) {
   const latestSleepTime = createLatestSleepTime(latestLogObj);
   const sleepStatus = calculateSleepStatus();
   const sleepStatusStr = createSleepStatusStr(sleepStatus);
-  console.log(sleepStatusStr);
+
   //テンプレートエンジンにわたすデータオブジェクト
   const resData = {
     title: "睡眠監視にゃんこ",
@@ -44,7 +44,6 @@ const judgeSleepRank = (asleepTime) => {
   const asleepHH = asleepTime.getHours();
   const asleepMM = asleepTime.getMinutes();
   const asleepSS = asleepTime.getSeconds();
-  console.log(`${asleepHH}: ${asleepMM}: ${asleepSS}`);
   //入力ミスと判断　五時から正午まで
   if (5 < asleepHH && asleepHH < 12) {
     return 0;
@@ -72,6 +71,7 @@ const judgeSleepRank = (asleepTime) => {
 
 //睡眠ログを追記する
 const writeSleepLog = (asleepDate, rank) => {
+  //時間を各変数に分割取得
   const asleepYear = asleepDate.getFullYear();
   const asleepMonth = asleepDate.getMonth() + 1; // 月は0から始まるため、1を加える
   const asleepDay = asleepDate.getDate();
@@ -79,9 +79,37 @@ const writeSleepLog = (asleepDate, rank) => {
   const asleepMinutes = asleepDate.getMinutes();
   const asleepSeconds = asleepDate.getSeconds();
 
-  const logTxt = `\n${rank}, ${asleepYear}, ${asleepMonth}, ${asleepDay}, ${asleepHours}, ${asleepMinutes}, ${asleepSeconds}`;
+  //昼寝かどうかを判断する
+  const isSiesta = judgeSiesta(asleepHours);
 
-  //追記
+  //昼寝なら追記しない
+  if (isSiesta) {
+    console.log("昼寝と判断したため記録を取りやめた");
+    return;
+  }
+
+  //何日のログとして記録するのか判断する
+  const logDayStr = judgeLogDay(
+    asleepYear,
+    asleepMonth,
+    asleepDay,
+    asleepHours
+  );
+
+  //すでに記録されている日付かどうかを判定する
+  const isExistsLogDay = judgeIsExistsLogDay(
+    `${asleepYear}-${asleepMonth}-${asleepDay}`
+  );
+
+  //すでに記録されているなら記録しない
+  if (isExistsLogDay) {
+    console.log("すでに記録されているので記録を取りやめた");
+    return;
+  }
+
+  const logTxt = `\n${rank}, ${asleepYear}, ${asleepMonth}, ${asleepDay}, ${asleepHours}, ${asleepMinutes}, ${asleepSeconds}, ${logDayStr}`;
+
+  //csvファイルの末尾に追記する
   fs.appendFile(path.join(dataPath, "sleepLog.csv"), logTxt, (err) => {
     if (err) {
       console.error("睡眠ログを記録できなかった");
@@ -90,6 +118,52 @@ const writeSleepLog = (asleepDate, rank) => {
     }
     console.log("睡眠ログを記録した");
   });
+};
+
+//昼寝かどうか判断
+const judgeSiesta = (hour) => {
+  if (hour <= 6) {
+    return false;
+  }
+  if (hour <= 18) {
+    return true;
+  }
+  if (hour <= 24) {
+    return false;
+  }
+};
+
+//睡眠した日付を確定させて、その文字(年-月-日)を返す
+const judgeLogDay = (year, month, day, hour) => {
+  const dateString = `${year}-${month}-${day}`; // 入力された日付文字列
+  const date = new Date(dateString); // 文字列からDateオブジェクトを作成
+  // 0-6時までなら日付を一つ戻る
+  if (hour <= 6) {
+    date.setDate(date.getDate() - 1);
+    return `${date.getFullYear}-${date.getMonth}-${date.getDay}`;
+  } else {
+    //そうじゃないならそのまま
+    return dateString;
+  }
+};
+
+const judgeIsExistsLogDay = (dateStr) => {
+  const logs = fs.readFileSync(path.join(dataPath, "sleepLog.csv"), "utf-8");
+  const logsArr = logs.trim().split("\n");
+  //ログを全て確認して該当する日付があるか確認する
+  for (let i = 1; i <= logsArr.length - 1; i++) {
+    let dateStrOnLog;
+    //日付ストリングがないとエラーとなるためそれを回避
+    try {
+      dateStrOnLog = logsArr[i].split(",")[7].trim();
+    } catch (error) {}
+
+    //該当日付の有無確認
+    if (dateStr == dateStrOnLog) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const readLatestLog = () => {
@@ -133,7 +207,6 @@ const calculateSleepStatus = () => {
     const rank = parseInt(logsArr[i].split(",")[0]);
     sum += rank;
     count += 1;
-    console.log(`sum ${sum} count ${count}`);
   }
   let result = Math.round(sum / count);
 
