@@ -3,6 +3,7 @@ var router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const { create } = require("domain");
+const { log } = require("console");
 
 const dataPath = path.join("healthData", "sleepMonitor");
 
@@ -79,6 +80,9 @@ const writeSleepLog = (asleepDate, rank) => {
   const asleepMinutes = asleepDate.getMinutes();
   const asleepSeconds = asleepDate.getSeconds();
 
+  //ログを整形する(ログがおかしくなることによるエラー防止)
+  fixBlankLine();
+
   //昼寝かどうかを判断する
   const isSiesta = judgeSiesta(asleepHours);
 
@@ -133,6 +137,14 @@ const judgeSiesta = (hour) => {
   }
 };
 
+//ログ内の空欄を削除
+const fixBlankLine = () => {
+  const logs = fs.readFileSync(path.join(dataPath, "sleepLog.csv"), "utf-8");
+  const fixedLogs = logs.replace(/\n\s*\n/g, "\n"); // 正規表現を使用して空白行を修正
+  fs.writeFileSync(path.join(dataPath, "sleepLog.csv"), fixedLogs);
+  console.log("ログ修正" + path.join(dataPath, "sleepLog.csv"));
+};
+
 //睡眠した日付を確定させて、その文字(年-月-日)を返す
 const judgeLogDay = (year, month, day, hour) => {
   const dateString = `${year}-${month}-${day}`; // 入力された日付文字列
@@ -140,18 +152,22 @@ const judgeLogDay = (year, month, day, hour) => {
   // 0-6時までなら日付を一つ戻る
   if (hour <= 6) {
     date.setDate(date.getDate() - 1);
-    return `${date.getFullYear}-${date.getMonth}-${date.getDay}`;
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDay()}`;
   } else {
     //そうじゃないならそのまま
     return dateString;
   }
 };
 
+//すでにその日の情報がログ上に残っているかどうかを判断する(同日ログの二重記入防止のため)
 const judgeIsExistsLogDay = (dateStr) => {
   const logs = fs.readFileSync(path.join(dataPath, "sleepLog.csv"), "utf-8");
   const logsArr = logs.trim().split("\n");
   //ログを全て確認して該当する日付があるか確認する
   for (let i = 1; i <= logsArr.length - 1; i++) {
+    if (!logsArr[i]) {
+      continue; //空行を飛ばす
+    }
     let dateStrOnLog;
     //日付ストリングがないとエラーとなるためそれを回避
     try {
